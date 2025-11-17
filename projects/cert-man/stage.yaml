@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    # Let's Encrypt staging server (for testing)
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: bob@bomar.us
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - dns01:
+        route53:
+          region: us-east-2
+          accessKeyID: AKIASMOKF2ZWT5DCC644
+          secretAccessKeySecretRef:
+            name: route53-credentials
+            key: secret-access-key

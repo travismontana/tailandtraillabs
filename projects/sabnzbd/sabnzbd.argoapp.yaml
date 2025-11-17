@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sabnzbd
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: sabnzbd
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://k8s-at-home.com/charts/
+    chart: sabnzbd
+    targetRevision: 9.4.2
+    helm:
+      values: |
+        env:
+          host_whitelist: "sabnzbd.lab.tailandtraillabs.com"
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

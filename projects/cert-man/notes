@@ -1,0 +1,7 @@
+kubectl create secret generic route53-credentials \
+  --namespace cert-manager \
+  --from-literal=secret-access-key='YOUR_SECRET_ACCESS_KEY_HERE'
+
+   kubectl run test --image=busybox --rm -it --restart=Never -- nslookup google.com
+
+kubectl run test --image=busybox --rm -it --restart=Never -- nslookup -q=txt _acme-challenge.lab2.tailandtraillabs.com

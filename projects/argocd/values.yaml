@@ -1,0 +1,24 @@
+global:
+  domain: argocd.lab2.tailandtraillabs.com
+
+certificate:
+  enabled: true
+
+configs:
+  params:
+    server.insecure: "true" 
+
+server:
+  ingress:
+    enabled: false
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - argocd.lab2.tailandtraillabs.com
+    tls:
+      - secretName: wildcard-tls  # Use the copied wildcard cert
+        hosts:
+          - argocd.lab2.tailandtraillabs.com

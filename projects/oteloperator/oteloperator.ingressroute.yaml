@@ -1,0 +1,20 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sonarr
+  namespace: sonarr
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: sonarr.lab.tailandtraillabs.com
+    external-dns.alpha.kubernetes.io/target: intrepid.hangar.bpfx.org
+    external-dns.alpha.kubernetes.io/ttl: "300"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`sonarr.lab.tailandtraillabs.com`)
+      services:
+        - name: sonarr
+          port: 8989
+  tls:
+    secretName: wildcard-tls-prod

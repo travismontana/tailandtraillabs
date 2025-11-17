@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-cert-prod
+  namespace: cert-manager  # Or whatever namespace you want
+spec:
+  secretName: wildcard-tls-prod
+  issuerRef:
+    name: letsencrypt-prod  # Use staging first to test
+    kind: ClusterIssuer
+  dnsNames:
+  - "*.lab.tailandtraillabs.com"  # Change to your subdomain
+  - "lab.tailandtraillabs.com"    # Optional: include the base subdomain too

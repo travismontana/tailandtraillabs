@@ -1,0 +1,36 @@
+$2a$12$9yZhFc8iFUTtmJHdEp9nTuqKC1eZu3I4TritIXF/f9sF73BpskAmK
+
+kubectl create secret generic kargo-admin-secret -n kargo \
+  --from-literal=passwordHash='$2a$12$9yZhFc8iFUTtmJHdEp9nTuqKC1eZu3I4TritIXF/f9sF73BpskAmK' \
+  --from-literal=tokenSigningKey='4aN3StktFQyCuSs7xeB4TQCNJNc4549s'
+
+  4aN3StktFQyCuSs7xeB4TQCNJNc4549s
+
+
+ kubectl get secret route53-credentials -n cert-manager -o yaml |
+ \\n  sed 's/namespace: cert-manager/namespace: external-dns/' | 
+ \\n  kubectl apply -f -
+
+ kubectl get secret wildcard-tls-prod -n cert-manager -o yaml |
+ sed 's/namespace: cert-manager/namespace: sonarr/' | 
+ kubectl apply -f -
+
+
+  kubectl get secret wildcard-tls-prod -n cert-manager -o yaml |
+ sed 's/namespace: cert-manager/namespace: radarr/' | 
+ kubectl apply -f -
+
+ kubectl get secret wildcard-tls-prod -n cert-manager -o yaml |
+ sed 's/namespace: cert-manager/namespace: bazarr/' | 
+ kubectl apply -f -
+
+
+  kubectl get secret wildcard-tls-prod -n cert-manager -o yaml |
+ sed 's/namespace: cert-manager/namespace: prowlarr/' | 
+ kubectl apply -f -
+
+ kubectl get secret wildcard-tls-prod -n cert-manager -o yaml |
+ sed 's/namespace: cert-manager/namespace: sabnzbd/' | 
+ kubectl apply -f -
+
+ 

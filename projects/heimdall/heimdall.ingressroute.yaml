@@ -1,0 +1,20 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: heimdall
+  namespace: heimdall
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: heimdall.lab.tailandtraillabs.com
+    external-dns.alpha.kubernetes.io/target: intrepid.hangar.bpfx.org
+    external-dns.alpha.kubernetes.io/ttl: "300"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`heimdall.lab.tailandtraillabs.com`)
+      services:
+        - name: heimdall
+          port: 80
+  tls:
+    secretName: wildcard-tls-prod

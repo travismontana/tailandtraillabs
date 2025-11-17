@@ -1,0 +1,13 @@
+global:
+  domain: argocd.lab.tailandtraillabs.com
+
+certificate:
+  enabled: true
+
+configs:
+  params:
+    server.insecure: "true" 
+
+server:
+  ingress:
+    enabled: false

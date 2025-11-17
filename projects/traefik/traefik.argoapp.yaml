@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: traefik
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://traefik.github.io/charts
+    chart: traefik
+    targetRevision: 37.3.0
+    helm:
+      values: |
+        ports:
+          websecure:
+            tls:
+              enabled: true
+          web:
+            redirections:
+              entryPoint:
+                to: websecure
+                permanent: true
+                scheme: https
+        deployment:
+          dnsConfig:
+            nameservers:
+              - 172.16.2.23
+            searches:
+              - hangar.bpfx.org
+              - lab.tailandtraillabs.com
+        additionalArguments:
+          - --metrics.otlp.grpc=true
+          - --metrics.otlp.grpc.endpoint=signoz-otel-collector.signoz.svc:4317
+          - --metrics.otlp.grpc.insecure=true
+          - --tracing.otlp.grpc=true
+          - --tracing.otlp.grpc.endpoint=signoz-otel-collector.signoz.svc:4317
+          - --tracing.otlp.grpc.insecure=true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

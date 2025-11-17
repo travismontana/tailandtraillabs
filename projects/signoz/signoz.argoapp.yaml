@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: signoz
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://charts.signoz.io
+    chart: signoz
+    targetRevision: 0.101.0
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

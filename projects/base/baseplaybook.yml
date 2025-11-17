@@ -1,0 +1,61 @@
+---
+- name: Build the base
+  hosts: all
+  become: yes
+  tasks:
+    - name: Ensure required packages are installed
+      package:
+        name:
+          - git
+          - curl
+          - vim
+          - traceroute
+        state: present
+
+    - name: Install helm if not exists
+      unarchive:
+        src: https://get.helm.sh/helm-v3.19.2-linux-amd64.tar.gz
+        dest: /usr/local/bin
+        extra_opts: "--strip-components=1"
+        owner: root
+        group: root
+        mode: 0755
+        remote_src: true
+      args:
+        creates: /usr/local/bin/helm    
+
+    - name: Install kubectl if not exists
+      get_url:
+        url: https://dl.k8s.io/release/v1.34.2/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/kubectl
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: create /root/.kube directory
+      file:
+        path: /root/.kube
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+
+    - name: install kubeconfig
+      copy:
+        remote_src: true
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /root/.kube/config
+        owner: root
+        group: root
+        mode: 0600
+
+    - name: Ensure cert-manager is installed
+      kubernetes.core.helm:
+        name: cert-manager
+        chart_ref: oci://quay.io/jetstack/charts/cert-manager:v1.19.1
+        namespace: cert-manager
+        create_namespace: true
+        chart_version: v1.19.1
+        values:
+          installCRDs: true
+        state: present

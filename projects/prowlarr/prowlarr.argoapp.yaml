@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prowlarr
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: prowlarr
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://k8s-at-home.com/charts/
+    chart: prowlarr
+    targetRevision: 4.5.2
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

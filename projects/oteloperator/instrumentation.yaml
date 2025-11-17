@@ -1,0 +1,14 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: otel-auto-instrumentation
+  namespace: oteloperator
+spec:
+  exporter:
+    endpoint: http://signoz-otel-collector.signoz.svc:4317
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: parentbased_always_on
+    

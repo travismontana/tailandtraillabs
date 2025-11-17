@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: external-dns
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: 1.19.0
+    helm:
+      parameters:
+        - name: provider
+          value: aws
+        - name: aws.region
+          value: us-east-2  # Change to your region
+        - name: txtOwnerId
+          value: ttl-ops
+        - name: domainFilters[0]
+          value: tailandtraillabs.com
+        - name: policy
+          value: sync  # Creates & deletes records
+        - name: sources[0]
+          value: ingress
+        - name: sources[1]
+          value: service
+        - name: sources[2]
+          value: traefik-proxy  # For Traefik IngressRoute
+        - name: crd.create
+          value: "false"  # Traefik CRDs already exist
+        - name: crd.apiversion
+          value: traefik.io/v1alpha1
+        - name: crd.kind
+          value: IngressRoute
+        - name: interval
+          value: 1m
+        - name: logLevel
+          value: info
+        - name: env[0].name
+          value: AWS_ACCESS_KEY_ID
+        - name: env[0].value
+          value: AKIASMOKF2ZWT5DCC644
+        - name: env[1].name
+          value: AWS_SECRET_ACCESS_KEY
+        - name: env[1].valueFrom.secretKeyRef.name
+          value: route53-credentials
+        - name: env[1].valueFrom.secretKeyRef.key
+          value: secret-access-key
+        - name: env[2].name
+          value: AWS_REGION
+        - name: env[2].value
+          value: us-east-2
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

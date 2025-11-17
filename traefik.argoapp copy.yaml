@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: traefik
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://traefik.github.io/charts
+    chart: traefik
+    targetRevision: 37.3.0
+    helm:
+      parameters:
+      - name: ports.websecure.tls.enabled
+        value: "true"
+      - name: ports.web.redirections.entryPoint.to
+        value: websecure
+      - name: ports.web.redirections.entryPoint.permanent
+        value: "true"
+      - name: ports.web.redirections.entryPoint.scheme
+        value: https
+      - name: deployment.dnsConfig.nameservers[0]
+        value: 172.16.2.23
+      - name: deployment.dnsConfig.searches[0]
+        value: hangar.bpfx.org
+      - name: deployment.dnsConfig.searches[1]
+        value: lab.tailandtraillabs.com
+      - name: entryPoints.web.observability.accessLogs
+        value: "true"
+      - name: entryPoints.web.observability.metrics
+        value: "true"
+      - name: metrics.otlp.grpc.enabled
+        value: "true"
+      - name: metrics.otlp.grpc.endpoint
+        value: "signoz-otel-collector.signoz.svc:4317"
+      - name: metrics.otlp.grpc.insecure
+        value: "true"
+      - name: entryPoints.web.observability.tracing
+        value: "true"
+      - name: tracing.otlp.grpc.enabled
+        value: "true"
+      - name: tracing.otlp.grpc.endpoint
+        value: "signoz-otel-collector.signoz.svc:4317"
+      - name: tracing.otlp.grpc.insecure
+        value: "true"
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

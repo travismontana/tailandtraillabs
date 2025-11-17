@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bazarr
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: bazarr
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://k8s-at-home.com/charts/
+    chart: bazarr
+    targetRevision: 10.6.2
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
