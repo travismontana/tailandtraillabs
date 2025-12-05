@@ -1,0 +1,29 @@
+metadata:
+  name: radarr
+  labels:
+    tailandtraillabs.com/app:radarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tailandtraillabs.com/app:radarr
+  template:
+    metadata:
+      labels:
+        tailandtraillabs.com/app:radarr
+    spec:
+      containers:
+      - name:radarr
+        image: lscr.io/linuxserver/radarr:latest
+        ports:
+        - containerPort: 7878
+        livenessProbe:
+          httpGet:
+            port: 7878
+        readinessProbe:
+          httpGet:
+            port: 7878
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: radarr-config

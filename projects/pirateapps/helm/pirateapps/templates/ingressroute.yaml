@@ -1,0 +1,18 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ .Values.name }}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.hostname }}
+    external-dns.alpha.kubernetes.io/ttl: '300'
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`{{ .Values.name }}.lab.tailandtraillabs.com`)
+    services:
+    - name: {{ .Values.name }}
+      port: {{ .Values.port }}
+  tls:
+    secretName: wildcard-tls-prod

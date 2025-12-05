@@ -1,0 +1,18 @@
+name: app
+repo: lscr.io/linuxserver
+port: 8080
+
+nfs:
+  server: danas.hangar.bpfx.org
+  path: /volume1/dataz
+
+pvc:
+  storageClass: local-path
+  size: 1Gi
+
+env:
+  PUID: "1000"
+  PGID: "1000"
+  UMASK: "002"
+  TZ: "America/Chicago"
+  HAS_IPV6: "false"

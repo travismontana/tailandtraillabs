@@ -1,0 +1,4 @@
+PyYAML>=6.0
+google-api-python-client>=0
+google-auth-httplib2>=0
+google-auth-oauthlib>=0

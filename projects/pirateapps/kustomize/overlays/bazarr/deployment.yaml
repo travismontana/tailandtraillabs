@@ -1,0 +1,29 @@
+metadata:
+  name: bazarr
+  labels:
+    tailandtraillabs.com/app:bazarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tailandtraillabs.com/app:bazarr
+  template:
+    metadata:
+      labels:
+        tailandtraillabs.com/app:bazarr
+    spec:
+      containers:
+      - name:bazarr
+        image: lscr.io/linuxserver/bazarr:latest
+        ports:
+        - containerPort: 6767
+        livenessProbe:
+          httpGet:
+            port: 6767
+        readinessProbe:
+          httpGet:
+            port: 6767
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: bazarr-config

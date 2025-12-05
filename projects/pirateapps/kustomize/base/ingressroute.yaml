@@ -1,0 +1,20 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: pirateapps
+  namespace: pirateapps
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: pirateapps.lab.tailandtraillabs.com
+    external-dns.alpha.kubernetes.io/target: intrepid.hangar.bpfx.org
+    external-dns.alpha.kubernetes.io/ttl: "300"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`pirateapps.lab.tailandtraillabs.com`)
+      services:
+        - name: pirateapps
+          port: placeholder-port
+  tls:
+    secretName: wildcard-tls-prod
