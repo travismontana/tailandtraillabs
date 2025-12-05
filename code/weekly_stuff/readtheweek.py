@@ -3,12 +3,10 @@
 Weekly Task and Meal Planner
 
 This script reads a YAML file containing weekly tasks, meals, and activities, then:
-- Creates tasks in Google Tasks
+- Creates tasks in Google Tasks (for non-time-specific to-dos)
+- Creates time-specific tasks as Calendar events with 15min reminders (deadline-based)
 - Creates meal events in Google Calendar (Food calendar)
-- Creates activity events in Google Calendar (Primary calendar)
-
-The script handles duplicate detection and schedules tasks/events based on the day of the week,
-automatically calculating whether they should be scheduled this week or next week.
+- Creates activity events in Google Calendar (Primary calendar) with scheduled times
 
 Required OAuth scopes:
 - https://www.googleapis.com/auth/tasks (for Google Tasks)
@@ -25,6 +23,7 @@ import argparse
 import logging
 import yaml
 import os.path
+import re
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -99,8 +98,14 @@ def readtheweek(file_path):
             Lunch: meal name
             Dinner: meal name
             Snack: snack name
-            Things: [list of tasks]
-            Activity: [list of activities]
+            Things: 
+                - "Task without time"
+                - "14:30 - Task due by 2:30pm"
+            Activity: 
+                - "19:00 - Game Night"
+                - item: "Doctor Appointment"
+                  time: "14:00"
+                  duration: 60
     """
     with open(file_path, 'r') as file:
         data = yaml.full_load(file)
@@ -136,16 +141,84 @@ def parsetheweek(data):
     log(f"All day tasks: {allday}")
     return data
 
+def parse_item_with_time(item_data):
+    """
+    Parse an item that could be:
+    - A simple string: "Do laundry" → No time
+    - A time-prefixed string: "14:30 - Finish report" → Time extracted
+    
+    Args:
+        item_data: String containing task information
+        
+    Returns:
+        tuple: (title, due_time, is_timed)
+            - title (str): The task title
+            - due_time (time): The time object if specified, else None
+            - is_timed (bool): True if a time was specified
+    """
+    if isinstance(item_data, str):
+        # Check for time prefix: "HH:MM - text"
+        match = re.match(r'^(\d{1,2}):(\d{2})\s*-\s*(.+)$', item_data)
+        if match:
+            hour, minute, title = match.groups()
+            return title, time(int(hour), int(minute)), True
+        
+        return item_data, None, False
+    
+    return str(item_data), None, False
+
+def parse_activity_with_time(item_data, default_time=None, default_duration=120):
+    """
+    Parse an activity that could be:
+    - A simple string: "Game Night"
+    - A time-prefixed string: "19:00 - Game Night"
+    - A dict: {"item": "Meeting", "time": "14:30", "duration": 90}
+    
+    Args:
+        item_data: String or dict containing activity information
+        default_time (time): Default time if none specified (default: None)
+        default_duration (int): Default duration in minutes (default: 120)
+        
+    Returns:
+        tuple: (title, activity_time, duration_minutes)
+    """
+    # Handle dictionary format
+    if isinstance(item_data, dict):
+        title = item_data.get('item', item_data.get('title', 'Untitled'))
+        
+        time_str = item_data.get('time')
+        if time_str:
+            hour, minute = map(int, time_str.split(':'))
+            activity_time = time(hour, minute)
+        else:
+            activity_time = default_time
+        
+        duration = item_data.get('duration', default_duration)
+        return title, activity_time, duration
+    
+    # Handle string format
+    item_str = str(item_data)
+    
+    # Check for time prefix: "HH:MM - text"
+    match = re.match(r'^(\d{1,2}):(\d{2})\s*-\s*(.+)$', item_str)
+    if match:
+        hour, minute, title = match.groups()
+        return title, time(int(hour), int(minute)), default_duration
+    
+    # Plain string with no time
+    return item_str, default_time, default_duration
+
 def createtask(credsfile, taskdict):
     """
     Create tasks and calendar events from the weekly planning dictionary.
     
     This function:
     1. Authenticates with Google APIs using OAuth
-    2. Creates tasks in Google Tasks for general to-dos
-    3. Creates meal events in the Food calendar
-    4. Creates activity events in the primary calendar
-    5. Checks for duplicates before creating new entries
+    2. Creates tasks in Google Tasks for non-time-specific to-dos
+    3. Creates calendar events for time-specific tasks with 15min reminders
+    4. Creates meal events in the Food calendar
+    5. Creates activity events in the primary calendar
+    6. Checks for duplicates before creating new entries
     
     Args:
         credsfile (str): Path to OAuth credentials JSON file
@@ -276,30 +349,91 @@ def createtask(credsfile, taskdict):
         
         # ===== PROCESS GENERAL TASKS (Things) =====
         # Find the 'Things' key (case-insensitive)
-        things_key = 'things' if 'things' in day_data else 'Things'
-        if things_key in day_data and day_data[things_key]:
-            for item in day_data[things_key]:
-                log(f"Creating task: {item}")
+        things_key = next((k for k in day_data.keys() if k.lower() == 'things'), None)
+        if things_key and day_data[things_key]:
+            for item_data in day_data[things_key]:
+                title, item_time, is_timed = parse_item_with_time(item_data)
                 
-                # Build task object
-                tasks = {
-                    'title': item,
-                }
-                if whendue:
-                    tasks['due'] = whendue
+                if is_timed and whendue:
+                    # TIME-SPECIFIC TASK → Create as calendar event with reminder
+                    log(f"Creating timed task: {title} due at {item_time}")
+                    
+                    task_datetime = due_datetime.replace(hour=item_time.hour, minute=item_time.minute)
+                    
+                    if task_datetime < datetime.now():
+                        task_datetime += timedelta(days=7)
+                    
+                    # Create a 30-minute slot ending at the deadline
+                    start_time = (task_datetime - timedelta(minutes=30)).isoformat()
+                    end_time = task_datetime.isoformat()
+                    timezone = 'America/Chicago'
+                    
+                    # Check for duplicates
+                    time_min = task_datetime.replace(hour=0, minute=0, second=0).isoformat() + 'Z'
+                    time_max = (task_datetime + timedelta(days=1)).replace(hour=0, minute=0, second=0).isoformat() + 'Z'
+                    
+                    existing_events = calendar_service.events().list(
+                        calendarId='primary',
+                        timeMin=time_min,
+                        timeMax=time_max,
+                        singleEvents=True,
+                        orderBy='startTime'
+                    ).execute()
+                    
+                    events = existing_events.get('items', [])
+                    event_exists = any(e.get('summary') == f"⏰ {title}" for e in events)
+                    
+                    if event_exists:
+                        log(f"Calendar event '⏰ {title}' already exists, skipping.")
+                    else:
+                        event = {
+                            'summary': f"⏰ {title}",  # Emoji to distinguish tasks from appointments
+                            'description': 'Task - Complete by this time',
+                            'start': {
+                                'dateTime': start_time,
+                                'timeZone': timezone,
+                            },
+                            'end': {
+                                'dateTime': end_time,
+                                'timeZone': timezone,
+                            },
+                            'reminders': {
+                                'useDefault': False,
+                                'overrides': [
+                                    {'method': 'popup', 'minutes': 15},  # 15 min reminder
+                                ],
+                            },
+                        }
+                        
+                        event_result = calendar_service.events().insert(
+                            calendarId='primary',
+                            body=event
+                        ).execute()
+                        
+                        log(f"Timed task calendar event created: {event_result.get('htmlLink')}")
                 
-                log(f"Creating task: {tasks}")
-                
-                # Check for duplicates
-                if 'items' in my_tasks_tasks:
-                    existing_titles = [t['title'] for t in my_tasks_tasks['items']]
-                    if item in existing_titles:
-                        log(f"Task {item} already exists, skipping.")
-                        continue
-                
-                # Create the task
-                tasksexec = service.tasks().insert(tasklist=my_tasks_id, body=tasks).execute()
-                log(f"Task created: {tasksexec['title']} with ID: {tasksexec}")
+                else:
+                    # REGULAR TASK → Create as Google Task (date only, no specific time)
+                    log(f"Creating task: {title}")
+                    
+                    tasks = {
+                        'title': title,
+                    }
+                    if whendue:
+                        tasks['due'] = whendue
+                    
+                    log(f"Creating task: {tasks}")
+                    
+                    # Check for duplicates
+                    if 'items' in my_tasks_tasks:
+                        existing_titles = [t['title'] for t in my_tasks_tasks['items']]
+                        if title in existing_titles:
+                            log(f"Task {title} already exists, skipping.")
+                            continue
+                    
+                    # Create the task
+                    tasksexec = service.tasks().insert(tasklist=my_tasks_id, body=tasks).execute()
+                    log(f"Task created: {tasksexec['title']} with ID: {tasksexec}")
         
         # ===== PROCESS MEALS (Breakfast, Lunch, Dinner, Snack) =====
         # Loop through each meal type and create calendar events
@@ -375,23 +509,33 @@ def createtask(credsfile, taskdict):
                     log(f"No due date for {day_name}, skipping {meal_name} task creation.")
         
         # ===== PROCESS ACTIVITIES =====
-        # Activities are scheduled at 7pm on the target day
+        # Activities are appointments with scheduled start times and durations
         activity_key = next((k for k in day_data.keys() if k.lower() == 'activity'), None)
         if activity_key and day_data[activity_key]:
-            for activity in day_data[activity_key]:
-                log(f"Creating activity: {activity}")
+            for activity_data in day_data[activity_key]:
+                # Parse activity with custom time/duration support
+                title, activity_time, duration = parse_activity_with_time(
+                    activity_data, 
+                    default_time=time(19, 0),  # Default to 7pm
+                    default_duration=120       # Default to 2 hours
+                )
                 
-                if whendue:
-                    # Default activity time is 7pm
-                    activity_datetime = due_datetime.replace(hour=19, minute=0, second=0, microsecond=0)
+                log(f"Creating activity: {title}")
+                
+                if whendue and activity_time:
+                    # Schedule activity at specific time with specific duration
+                    activity_datetime = due_datetime.replace(
+                        hour=activity_time.hour, 
+                        minute=activity_time.minute, 
+                        second=0, 
+                        microsecond=0
+                    )
                     
-                    # If activity time has already passed today, schedule for next week
                     if activity_datetime < datetime.now():
                         activity_datetime += timedelta(days=7)
                     
-                    # Activities are 2 hours long by default
                     start_time = activity_datetime.isoformat()
-                    end_time = (activity_datetime + timedelta(hours=2)).isoformat()
+                    end_time = (activity_datetime + timedelta(minutes=duration)).isoformat()
                     timezone = 'America/Chicago'
                     
                     # Define search window for duplicate detection (entire day)
@@ -410,26 +554,20 @@ def createtask(credsfile, taskdict):
                     
                     events = existing_events.get('items', [])
                     
-                    # Debug logging for duplicate detection
-                    log(f"Searching for '{activity}' in time window {time_min} to {time_max}")
-                    log(f"Found {len(events)} events in time window:")
-                    for e in events:
-                        log(f"  - Event: '{e.get('summary')}' at {e.get('start')}")
-                    
                     # Check for exact title match
                     event_exists = False
                     for e in events:
-                        if e.get('summary') == activity:
+                        if e.get('summary') == title:
                             log(f"Found existing event: {e.get('summary')} at {e.get('start')}")
                             event_exists = True
                             break
                     
                     if event_exists:
-                        log(f"Calendar event '{activity}' already exists, skipping.")
+                        log(f"Calendar event '{title}' already exists, skipping.")
                     else:
                         # Create the activity event
                         event = {
-                            'summary': activity,
+                            'summary': title,
                             'description': 'Activity',
                             'start': {
                                 'dateTime': start_time,
@@ -449,7 +587,7 @@ def createtask(credsfile, taskdict):
                         
                         log(f"Activity calendar event created: {event_result.get('htmlLink')}")
                 else:
-                    log(f"No due date for {day_name}, skipping {activity} activity creation.")
+                    log(f"No due date for {day_name}, skipping {title} activity creation.")
 
 def main():
     """

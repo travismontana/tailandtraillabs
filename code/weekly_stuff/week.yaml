@@ -11,6 +11,9 @@ monday:
   Things:
     - mondaything1
     - mondaything2
+  Activity:
+    - Go for a walk
+  
 
 tuesday:
   Breakfast:
