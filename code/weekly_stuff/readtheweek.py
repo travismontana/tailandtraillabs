@@ -2,7 +2,23 @@
 """
 Weekly Task and Meal Planner
 
-... (docstring stays the same)
+This script reads a YAML file containing weekly tasks, meals, and activities, then:
+- Creates tasks in Google Tasks (for non-time-specific to-dos)
+- Creates time-specific tasks as Calendar events with 15min reminders (deadline-based)
+- Creates meal events in Google Calendar (Food calendar)
+- Creates activity events in Google Calendar (Primary calendar) with scheduled times
+
+Required OAuth scopes:
+- https://www.googleapis.com/auth/tasks (for Google Tasks)
+- https://www.googleapis.com/auth/calendar (for Google Calendar)
+
+Usage:
+    python readtheweek.py [-v] [-q] [-c CREDSFILE] <yaml_file>
+
+Example:
+    python readtheweek.py week.yaml                    # Normal mode
+    python readtheweek.py -v week.yaml                 # Verbose mode
+    python readtheweek.py -q week.yaml                 # Quiet mode
 """
 
 import argparse
@@ -22,11 +38,12 @@ from googleapiclient.errors import HttpError
 from datetime import time, datetime, timedelta
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 # Global configuration
 VERBOSE = False
+QUIET = False
 
 # OAuth scopes for Google APIs
 SCOPES = [
@@ -51,6 +68,16 @@ def log(msg):
     """
     if VERBOSE:
         logger.info(msg)
+
+def info(msg):
+    """
+    Print an info message unless quiet mode is enabled.
+    
+    Args:
+        msg (str): The message to print
+    """
+    if not QUIET:
+        print(msg)
 
 def secure_file_path(filename, base_dir=None):
     """
@@ -82,23 +109,20 @@ def check_file_permissions(filepath):
         
     Returns:
         bool: True if permissions are secure, False otherwise
-        
-    Raises:
-        Warning if file permissions are too permissive
     """
     filepath = Path(filepath)
     
     if not filepath.exists():
-        return True  # File doesn't exist yet, will be created securely
+        return True
     
-    # Check file permissions (should be 0600 or 0400)
     file_stat = filepath.stat()
     file_mode = stat.S_IMODE(file_stat.st_mode)
     
     # Check if file is readable/writable by group or others
     if file_mode & (stat.S_IRWXG | stat.S_IRWXO):
-        logger.warning(f"WARNING: {filepath} has insecure permissions ({oct(file_mode)})")
-        logger.warning(f"Fix with: chmod 600 {filepath}")
+        if not QUIET:
+            logger.warning(f"File {filepath} has insecure permissions ({oct(file_mode)})")
+            logger.warning(f"Fix with: chmod 600 {filepath}")
         return False
     
     return True
@@ -129,7 +153,8 @@ def optsfunc():
         argparse.Namespace: Parsed command-line arguments
     """
     parser = argparse.ArgumentParser(description="Read The Week Options")
-    parser.add_argument('-v', action='store_true', help='Enable verbose output')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('-q', '--quiet', action='store_true', help='Minimal output (errors only)')
     parser.add_argument('-c', '--credsfile', type=str, 
                        default=str(secure_file_path('credentials.json')),
                        help='Path to the OAuth credentials file')
@@ -191,7 +216,7 @@ def parsetheweek(data):
     
     # Validate data structure
     if 'allweek' not in data:
-        logger.warning("No 'allweek' section found in YAML")
+        log("No 'allweek' section found in YAML")
     
     return data
 
@@ -304,7 +329,10 @@ def get_food_calendar_id(calendar_service, provided_id=None):
                 log(f"Using saved Food calendar ID")
                 return saved_id
     
-    # List calendars and prompt
+    # List calendars and prompt (only if not quiet)
+    if QUIET:
+        raise ValueError("Food calendar ID required. Use --food-calendar or remove --quiet flag.")
+    
     print("\nAvailable calendars:")
     calendars = calendar_service.calendarList().list().execute()
     calendar_list = calendars.get('items', [])
@@ -316,14 +344,12 @@ def get_food_calendar_id(calendar_service, provided_id=None):
         try:
             choice = input("\nSelect Food calendar number (or enter calendar ID): ").strip()
             
-            # Check if it's a number (list selection)
             if choice.isdigit():
                 idx = int(choice) - 1
                 if 0 <= idx < len(calendar_list):
                     selected_id = calendar_list[idx]['id']
                     break
             else:
-                # Assume it's a calendar ID
                 selected_id = choice
                 break
         except (ValueError, KeyboardInterrupt):
@@ -331,7 +357,7 @@ def get_food_calendar_id(calendar_service, provided_id=None):
     
     # Save for future use
     secure_write_file(config_file, selected_id)
-    print(f"Saved Food calendar ID for future use")
+    info("Saved Food calendar ID for future use")
     
     return selected_id
 
@@ -346,10 +372,19 @@ def createtask(credsfile, tokenfile, taskdict, food_calendar_id=None):
         food_calendar_id (str): Optional Food calendar ID
         
     Returns:
-        None
+        dict: Statistics about what was created
     """
     credsfile = Path(credsfile)
     tokenfile = Path(tokenfile)
+    
+    # Statistics
+    stats = {
+        'tasks': 0,
+        'timed_tasks': 0,
+        'meals': 0,
+        'activities': 0,
+        'skipped': 0
+    }
     
     # Validate credentials file exists
     if not credsfile.exists():
@@ -376,7 +411,6 @@ def createtask(credsfile, tokenfile, taskdict, food_calendar_id=None):
             creds = flow.run_local_server(port=0)
             log("Obtained new credentials via OAuth flow.")
         
-        # Save with secure permissions
         secure_write_file(tokenfile, creds.to_json())
     
     # ===== BUILD API SERVICES =====
@@ -394,27 +428,31 @@ def createtask(credsfile, tokenfile, taskdict, food_calendar_id=None):
         items = results.get("items", [])
         
         if not items:
-            print("No task lists found.")
-            return
+            logger.error("No task lists found.")
+            return stats
         
+        log("Task lists:")
+        for item in items:
+            log(f"  {item['title']} ({item['id']})")
+    
     except HttpError as err:
         logger.error(f"API error: {err}")
-        return
+        return stats
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return
+        return stats
     
     # Find the "My Stuff" task list
     my_tasks = next((item for item in items if item['title'] == 'My Stuff'), None)
     if not my_tasks:
         logger.error("Could not find 'My Stuff' task list")
-        return
+        return stats
     
     my_tasks_id = my_tasks['id']
     my_tasks_tasks = service.tasks().list(tasklist=my_tasks_id).execute()
     
     # ===== PROCESS EACH DAY =====
-    log("Creating the tasks")
+    log("Creating tasks and events...")
     for day_name, day_data in taskdict.items():
         log(f"Processing day: {day_name}")
         
@@ -490,6 +528,10 @@ def createtask(credsfile, tokenfile, taskdict, food_calendar_id=None):
                             
                             calendar_service.events().insert(calendarId='primary', body=event).execute()
                             log(f"Timed task created: {title}")
+                            stats['timed_tasks'] += 1
+                        else:
+                            log(f"Timed task already exists: {title}")
+                            stats['skipped'] += 1
                     
                     else:
                         # Regular task
@@ -501,11 +543,13 @@ def createtask(credsfile, tokenfile, taskdict, food_calendar_id=None):
                         if 'items' in my_tasks_tasks:
                             existing_titles = [t['title'] for t in my_tasks_tasks['items']]
                             if title in existing_titles:
-                                log(f"Task {title} already exists, skipping.")
+                                log(f"Task already exists: {title}")
+                                stats['skipped'] += 1
                                 continue
                         
                         service.tasks().insert(tasklist=my_tasks_id, body=tasks).execute()
                         log(f"Task created: {title}")
+                        stats['tasks'] += 1
                 
                 except Exception as e:
                     logger.error(f"Error processing task '{item_data}': {e}")
@@ -552,7 +596,11 @@ def createtask(credsfile, tokenfile, taskdict, food_calendar_id=None):
                             }
                             
                             calendar_service.events().insert(calendarId=food_calendar_id, body=event).execute()
-                            log(f"Meal event created: {meal_name}")
+                            log(f"Meal event created: {meal_name} - {item}")
+                            stats['meals'] += 1
+                        else:
+                            log(f"Meal already exists: {meal_name} - {item}")
+                            stats['skipped'] += 1
                 
                 except Exception as e:
                     logger.error(f"Error processing meal '{meal_name}': {e}")
@@ -609,10 +657,16 @@ def createtask(credsfile, tokenfile, taskdict, food_calendar_id=None):
                             
                             calendar_service.events().insert(calendarId='primary', body=event).execute()
                             log(f"Activity event created: {title}")
+                            stats['activities'] += 1
+                        else:
+                            log(f"Activity already exists: {title}")
+                            stats['skipped'] += 1
                 
                 except Exception as e:
                     logger.error(f"Error processing activity '{activity_data}': {e}")
                     continue
+    
+    return stats
 
 def main():
     """
@@ -621,17 +675,39 @@ def main():
     try:
         getopts = optsfunc()
         
-        if getopts.v:
-            global VERBOSE
+        global VERBOSE, QUIET
+        
+        if getopts.verbose:
             VERBOSE = True
+        
+        if getopts.quiet:
+            QUIET = True
+            # Set logging to only show errors
+            logging.getLogger().setLevel(logging.ERROR)
+        
+        if VERBOSE and QUIET:
+            print("Error: Cannot use --verbose and --quiet together")
+            return 1
         
         log(f"Reading file: {getopts.file}")
         data = readtheweek(getopts.file)
         taskdict = parsetheweek(data)
-        createtask(getopts.credsfile, getopts.tokenfile, taskdict, getopts.food_calendar)
+        stats = createtask(getopts.credsfile, getopts.tokenfile, taskdict, getopts.food_calendar)
+        
+        # Show summary
+        if not QUIET:
+            total = stats['tasks'] + stats['timed_tasks'] + stats['meals'] + stats['activities']
+            if total > 0 or stats['skipped'] > 0:
+                print(f"\n✓ Complete: {stats['tasks']} tasks, {stats['timed_tasks']} timed tasks, "
+                      f"{stats['meals']} meals, {stats['activities']} activities created")
+                if stats['skipped'] > 0:
+                    print(f"  ({stats['skipped']} items already existed)")
+            else:
+                print("✓ No new items to create")
     
     except KeyboardInterrupt:
-        print("\nInterrupted by user")
+        if not QUIET:
+            print("\nInterrupted by user")
         return 1
     except Exception as e:
         logger.error(f"Fatal error: {e}")
