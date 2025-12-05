@@ -37,6 +37,14 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from datetime import time, datetime, timedelta
 
+# Suppress noisy warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', message='.*urllib3.*')
+warnings.filterwarnings('ignore', message='.*chardet.*')
+
+# Suppress googleapiclient INFO logs about file_cache
+logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
