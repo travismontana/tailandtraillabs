@@ -1,0 +1,29 @@
+metadata:
+  name: sonarr
+  labels:
+    tailandtraillabs.com/app:sonarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tailandtraillabs.com/app:sonarr
+  template:
+    metadata:
+      labels:
+        tailandtraillabs.com/app:sonarr
+    spec:
+      containers:
+      - name:sonarr
+        image: lscr.io/linuxserver/sonarr:latest
+        ports:
+        - containerPort: 8989
+        livenessProbe:
+          httpGet:
+            port: 8989
+        readinessProbe:
+          httpGet:
+            port: 8989
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: sonarr-config

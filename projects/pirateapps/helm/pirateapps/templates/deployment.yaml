@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      containers:
+      - name: {{ .Values.name }}
+        image: {{ .Values.repo }}/{{ .Values.name }}:{{ .Values.version }}
+        ports:
+        - containerPort: {{ .Values.port }}
+        env:
+        - name: PUID
+          value: {{ .Values.env.PUID | quote }}
+        - name: PGID
+          value: {{ .Values.env.PGID | quote }}
+        - name: UMASK
+          value: {{ .Values.env.UMASK | quote }}
+        - name: TZ
+          value: {{ .Values.env.TZ | quote }}
+        - name: HAS_IPV6
+          value: {{ .Values.env.HAS_IPV6 | quote }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: {{ .Values.name }}-config
+      - name: data
+        nfs:
+          server: {{ .Values.nfs.server }}
+          path: {{ .Values.nfs.path }}

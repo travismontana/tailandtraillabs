@@ -1,0 +1,17 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bazarr
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: bazarr.lab.tailandtraillabs.com
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`bazarr.lab.tailandtraillabs.com`)
+      services:
+        - name: bazarr
+          port: 6767
+  tls:
+    secretName: wildcard-tls-prod

@@ -1,0 +1,4 @@
+commonLabels:
+  app.kubernetes.io/managed-by: pirateapps-operator
+  ttl.io/project: pirateapps
+

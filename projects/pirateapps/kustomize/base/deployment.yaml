@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pirateapps-pirated
+  labels:
+    tailandtraillabs.com/app: pirateapps-pirated
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tailandtraillabs.com/app: pirateapps-pirated
+  template:
+    metadata:
+      labels:
+        tailandtraillabs.com/app: pirateapps-pirated
+    spec:
+      containers:
+      - name: pirateapps-pirated
+        image: [placehodlder:latest]
+        ports:
+        - containerPort: placeholder-port
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: UMASK
+          value: "002"
+        - name: TZ
+          value: "America/Chicago"
+        - name: HAS_IPV6
+          value: "false"
+        livenessProbe:
+          httpGet:
+            path: /                # The path to check for the liveness probe
+            port: placeholder-port              # The port to check on
+          initialDelaySeconds: 15  # Wait this many seconds before starting the probe
+          periodSeconds: 10        # Check the probe every 10 seconds
+        readinessProbe:
+          httpGet:
+            path: /                # The path to check for the readiness probe
+            port: placeholder-port   # The port to check on
+          initialDelaySeconds: 5   # Wait this many seconds before starting the probe
+          periodSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: piratapps-config
+      - name: data
+        nfs:
+          server: danas.hangar.bpfx.org
+          path: /volume1/dataz

@@ -1,0 +1,29 @@
+metadata:
+  name: prowlarr
+  labels:
+    tailandtraillabs.com/app:prowlarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tailandtraillabs.com/app:prowlarr
+  template:
+    metadata:
+      labels:
+        tailandtraillabs.com/app:prowlarr
+    spec:
+      containers:
+      - name:prowlarr
+        image: lscr.io/linuxserver/prowlarr:latest
+        ports:
+        - containerPort: 9696
+        livenessProbe:
+          httpGet:
+            port: 9696
+        readinessProbe:
+          httpGet:
+            port: 9696
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: prowlarr-config
