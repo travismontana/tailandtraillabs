@@ -28,7 +28,11 @@ import os
 import os.path
 import re
 import stat
+import warnings
 from pathlib import Path
+
+# Suppress ALL warnings (do this as early as possible)
+warnings.filterwarnings('ignore')
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
