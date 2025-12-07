@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"="width=device-width, initial-scale=1.0">
+    <title>Ollama Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4ec9b0;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .form-section {
+            background: #252526;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+        }
+        
+        .form-row {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #9cdcfe;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        button {
+            background: #0e639c;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #1177bb;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .file-upload {
+            border: 2px dashed #555;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        
+        .file-upload:hover {
+            border-color: #0e639c;
+        }
+        
+        .uploaded-files {
+            margin-top: 10px;
+        }
+        
+        .file-tag {
+            display: inline-block;
+            background: #0e639c;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .file-tag button {
+            background: none;
+            border: none;
+            color: #fff;
+            margin-left: 5px;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .response-section {
+            background: #252526;
+            padding: 20px;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        
+        .response-content {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .history-section {
+            background: #252526;
+            padding: 20px;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-left: 3px solid #0e639c;
+            background: #1e1e1e;
+        }
+        
+        .history-prompt {
+            color: #4ec9b0;
+            margin-bottom: 5px;
+        }
+        
+        .history-response {
+            color: #d4d4d4;
+            font-size: 13px;
+        }
+        
+        .history-meta {
+            color: #858585;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .error {
+            background: #5a1d1d;
+            color: #f48771;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+        
+        .success {
+            background: #1e3a20;
+            color: #4ec9b0;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #9cdcfe;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ollama Web Interface</h1>
+        
+        <div class="form-section">
+            <h2 style="color: #9cdcfe; margin-bottom: 15px;">Chat Configuration</h2>
+            
+            <div class="two-column">
+                <div class="form-row">
+                    <label for="ollama-host">Ollama Host</label>
+                    <input type="text" id="ollama-host" value="groth.abode.tailandtraillabs.org:11434">
+                </div>
+                
+                <div class="form-row">
+                    <label for="model">Model</label>
+                    <select id="model">
+                        <option value="">Loading models...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="two-column">
+                <div class="form-row">
+                    <label for="convo-id">Conversation</label>
+                    <select id="convo-select">
+                        <option value="">-- New Conversation --</option>
+                    </select>
+                    <input type="text" id="convo-id" placeholder="Or enter new conversation name" style="margin-top: 5px;">
+                </div>
+                
+                <div class="form-row">
+                    <label for="history-count">History Count</label>
+                    <input type="number" id="history-count" value="10" min="0" max="100">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <label for="system-prompt">System Prompt (optional)</label>
+                <textarea id="system-prompt" placeholder="Enter system instructions..."></textarea>
+            </div>
+            
+            <div class="form-row">
+                <label for="temperature">Temperature (optional, 0.0-2.0)</label>
+                <input type="number" id="temperature" step="0.1" min="0" max="2" placeholder="Leave empty for default">
+            </div>
+            
+            <div class="form-row">
+                <label>
+                    <input type="checkbox" id="json-extract">
+                    Extract JSON from response
+                </label>
+            </div>
+            
+            <div class="form-row">
+                <label>
+                    <input type="checkbox" id="validate-json">
+                    Validate JSON (requires JSON extract)
+                </label>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h2 style="color: #9cdcfe; margin-bottom: 15px;">Prompt Templates</h2>
+            
+            <div class="two-column">
+                <div class="form-row">
+                    <label for="prompt-template">Load Template</label>
+                    <select id="prompt-template">
+                        <option value="">-- Select a template --</option>
+                    </select>
+                </div>
+                
+                <div class="form-row" style="display: flex; align-items: flex-end; gap: 10px;">
+                    <button onclick="loadPromptTemplate()" style="flex: 1;">Load</button>
+                    <button onclick="showSavePromptDialog()" style="flex: 1;">Save Current</button>
+                    <button onclick="deletePromptTemplate()" style="flex: 1; background: #a1260d;">Delete</button>
+                </div>
+            </div>
+            
+            <div id="prompt-description" style="margin-top: 10px; padding: 10px; background: #1e1e1e; border-radius: 3px; color: #858585; font-size: 12px; display: none;"></div>
+        </div>
+        
+        <div class="form-section">
+            <h2 style="color: #9cdcfe; margin-bottom: 15px;">Upload Files</h2>
+            
+            <div class="file-upload" id="file-upload-area">
+                <input type="file" id="file-input" multiple accept="image/*,application/pdf" style="display: none;">
+                <p>Click to upload images or files</p>
+                <p style="color: #858585; font-size: 12px;">Supports: JPG, PNG, GIF, PDF</p>
+            </div>
+            
+            <div class="uploaded-files" id="uploaded-files"></div>
+        </div>
+        
+        <div class="form-section">
+            <h2 style="color: #9cdcfe; margin-bottom: 15px;">Prompt</h2>
+            
+            <div class="form-row">
+                <textarea id="prompt" placeholder="Enter your prompt here..." style="min-height: 150px;"></textarea>
+            </div>
+            
+            <button id="send-btn" onclick="sendChat()">Send</button>
+            <button onclick="clearResponse()">Clear Response</button>
+            <button onclick="loadHistory()">Reload History</button>
+        </div>
+        
+        <div id="response-section" class="response-section" style="display: none;">
+            <h2 style="color: #9cdcfe; margin-bottom: 15px;">Response</h2>
+            <div id="response-content" class="response-content"></div>
+            <div id="response-meta" style="margin-top: 10px; color: #858585; font-size: 12px;"></div>
+        </div>
+        
+        <div id="history-section" class="history-section" style="display: none;">
+            <h2 style="color: #9cdcfe; margin-bottom: 15px;">Conversation History</h2>
+            <div id="history-content"></div>
+        </div>
+    </div>
+    
+    <!-- Modal for saving prompts -->
+    <div id="save-prompt-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px;">
+        <div style="max-width: 600px; margin: 100px auto; background: #252526; padding: 20px; border-radius: 4px; border: 1px solid #3e3e42;">
+            <h2 style="color: #9cdcfe; margin-bottom: 15px;">Save Prompt Template</h2>
+            
+            <div class="form-row">
+                <label for="save-prompt-id">Prompt ID (alphanumeric, dashes, underscores)</label>
+                <input type="text" id="save-prompt-id" placeholder="e.g., card_extraction">
+            </div>
+            
+            <div class="form-row">
+                <label for="save-prompt-name">Display Name</label>
+                <input type="text" id="save-prompt-name" placeholder="e.g., Card Extraction">
+            </div>
+            
+            <div class="form-row">
+                <label for="save-prompt-description">Description (optional)</label>
+                <input type="text" id="save-prompt-description" placeholder="e.g., Extract Dune Imperium card to JSON">
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button onclick="savePromptTemplate()">Save</button>
+                <button onclick="hideSavePromptDialog()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let uploadedFiles = [];
+        
+        // Load models on page load
+        window.onload = function() {
+            loadModels();
+            loadConversations();
+            loadPrompts();
+        };
+        
+        // Handle Ollama host change
+        document.getElementById('ollama-host').addEventListener('change', function() {
+            loadModels();
+        });
+        
+        // Handle conversation selection
+        document.getElementById('convo-select').addEventListener('change', function() {
+            const selectedConvo = this.value;
+            if (selectedConvo) {
+                document.getElementById('convo-id').value = selectedConvo;
+                loadHistory();
+            }
+        });
+        
+        // Show description when template is selected
+        document.getElementById('prompt-template').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const description = selectedOption.dataset.description;
+            const descDiv = document.getElementById('prompt-description');
+            
+            if (description && this.value) {
+                descDiv.textContent = description;
+                descDiv.style.display = 'block';
+            } else {
+                descDiv.style.display = 'none';
+            }
+        });
+        
+        // File upload handling
+        document.getElementById('file-upload-area').addEventListener('click', function() {
+            document.getElementById('file-input').click();
+        });
+        
+        document.getElementById('file-input').addEventListener('change', async function(e) {
+            const files = e.target.files;
+            for (let file of files) {
+                await uploadFile(file);
+            }
+        });
+        
+        async function loadModels() {
+            const host = document.getElementById('ollama-host').value;
+            const modelSelect = document.getElementById('model');
+            
+            try {
+                const response = await fetch(`/api/models?host=${encodeURIComponent(host)}`);
+                const models = await response.json();
+                
+                modelSelect.innerHTML = '';
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.name;
+                    option.textContent = `${model.name} (${model.size_gb.toFixed(1)} GB)`;
+                    modelSelect.appendChild(option);
+                });
+                
+                // Select default model if available
+                const defaultModel = 'qwen2-vl:7b';
+                const defaultOption = Array.from(modelSelect.options).find(opt => opt.value === defaultModel);
+                if (defaultOption) {
+                    modelSelect.value = defaultModel;
+                }
+                
+            } catch (error) {
+                console.error('Error loading models:', error);
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
+        }
+        
+        async function loadConversations() {
+            try {
+                const response = await fetch('/api/conversations');
+                const conversations = await response.json();
+                
+                const convoSelect = document.getElementById('convo-select');
+                convoSelect.innerHTML = '<option value="">-- New Conversation --</option>';
+                
+                conversations.forEach(convo => {
+                    const option = document.createElement('option');
+                    option.value = convo.id;
+                    option.textContent = `${convo.id} (${convo.message_count} msgs)`;
+                    convoSelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading conversations:', error);
+            }
+        }
+        
+        async function loadPrompts() {
+            try {
+                const response = await fetch('/api/prompts');
+                const prompts = await response.json();
+                
+                const promptSelect = document.getElementById('prompt-template');
+                promptSelect.innerHTML = '<option value="">-- Select a template --</option>';
+                
+                prompts.forEach(prompt => {
+                    const option = document.createElement('option');
+                    option.value = prompt.id;
+                    option.textContent = prompt.name;
+                    option.dataset.description = prompt.description || '';
+                    option.dataset.content = prompt.content;
+                    promptSelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading prompts:', error);
+            }
+        }
+        
+        function loadPromptTemplate() {
+            const promptSelect = document.getElementById('prompt-template');
+            const selectedOption = promptSelect.options[promptSelect.selectedIndex];
+            
+            if (!promptSelect.value) {
+                alert('Please select a template');
+                return;
+            }
+            
+            const content = selectedOption.dataset.content;
+            document.getElementById('prompt').value = content;
+        }
+        
+        function showSavePromptDialog() {
+            const prompt = document.getElementById('prompt').value.trim();
+            if (!prompt) {
+                alert('Please enter a prompt first');
+                return;
+            }
+            
+            document.getElementById('save-prompt-modal').style.display = 'block';
+        }
+        
+        function hideSavePromptDialog() {
+            document.getElementById('save-prompt-modal').style.display = 'none';
+            document.getElementById('save-prompt-id').value = '';
+            document.getElementById('save-prompt-name').value = '';
+            document.getElementById('save-prompt-description').value = '';
+        }
+        
+        async function savePromptTemplate() {
+            const promptId = document.getElementById('save-prompt-id').value.trim();
+            const promptName = document.getElementById('save-prompt-name').value.trim();
+            const promptDescription = document.getElementById('save-prompt-description').value.trim();
+            const content = document.getElementById('prompt').value.trim();
+            
+            if (!promptId || !promptName) {
+                alert('Please fill in Prompt ID and Display Name');
+                return;
+            }
+            
+            if (!/^[a-zA-Z0-9_-]+$/.test(promptId)) {
+                alert('Prompt ID can only contain letters, numbers, dashes, and underscores');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('prompt_id', promptId);
+            formData.append('name', promptName);
+            formData.append('content', content);
+            if (promptDescription) {
+                formData.append('description', promptDescription);
+            }
+            
+            try {
+                const response = await fetch('/api/prompts', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save prompt');
+                }
+                
+                alert('Prompt template saved!');
+                hideSavePromptDialog();
+                loadPrompts();
+                
+            } catch (error) {
+                console.error('Error saving prompt:', error);
+                alert('Failed to save prompt: ' + error.message);
+            }
+        }
+        
+        async function deletePromptTemplate() {
+            const promptSelect = document.getElementById('prompt-template');
+            const promptId = promptSelect.value;
+            
+            if (!promptId) {
+                alert('Please select a template to delete');
+                return;
+            }
+            
+            if (!confirm(`Delete prompt template "${promptSelect.options[promptSelect.selectedIndex].textContent}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/prompts/${promptId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete prompt');
+                }
+                
+                alert('Prompt template deleted');
+                loadPrompts();
+                document.getElementById('prompt-description').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error deleting prompt:', error);
+                alert('Failed to delete prompt: ' + error.message);
+            }
+        }
+        
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                uploadedFiles.push(result);
+                updateUploadedFilesList();
+                
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                alert('Failed to upload file: ' + error.message);
+            }
+        }
+        
+        function updateUploadedFilesList() {
+            const container = document.getElementById('uploaded-files');
+            container.innerHTML = '';
+            
+            uploadedFiles.forEach((file, index) => {
+                const tag = document.createElement('div');
+                tag.className = 'file-tag';
+                tag.innerHTML = `
+                    ${file.filename} (${(file.size / 1024).toFixed(1)} KB)
+                    <button onclick="removeFile(${index})">✕</button>
+                `;
+                container.appendChild(tag);
+            });
+        }
+        
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateUploadedFilesList();
+        }
+        
+        async function sendChat() {
+            const convoInput = document.getElementById('convo-id').value.trim();
+            const convoSelect = document.getElementById('convo-select').value;
+            const convoId = convoInput || convoSelect;
+            
+            if (!convoId) {
+                alert('Please select or enter a conversation name');
+                return;
+            }
+            
+            const prompt = document.getElementById('prompt').value.trim();
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+            
+            const model = document.getElementById('model').value;
+            if (!model) {
+                alert('Please select a model');
+                return;
+            }
+            
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            
+            const formData = new FormData();
+            formData.append('convo_id', convoId);
+            formData.append('prompt', prompt);
+            formData.append('model', model);
+            formData.append('ollama_host', document.getElementById('ollama-host').value);
+            formData.append('history_count', document.getElementById('history-count').value);
+            
+            const temperature = document.getElementById('temperature').value;
+            if (temperature) {
+                formData.append('temperature', temperature);
+            }
+            
+            const systemPrompt = document.getElementById('system-prompt').value.trim();
+            if (systemPrompt) {
+                formData.append('system_prompt', systemPrompt);
+            }
+            
+            formData.append('json_extract', document.getElementById('json-extract').checked);
+            formData.append('validate_json', document.getElementById('validate-json').checked);
+            
+            // Add uploaded file IDs
+            const fileIds = uploadedFiles.map(f => f.file_id).join(',');
+            formData.append('file_ids', fileIds);
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Request failed');
+                }
+                
+                const result = await response.json();
+                
+                // Display response
+                document.getElementById('response-section').style.display = 'block';
+                document.getElementById('response-content').textContent = result.response;
+                document.getElementById('response-meta').textContent = 
+                    `Tokens: ~${result.tokens_estimate} | Time: ${result.timestamp}`;
+                
+                // Clear prompt and files
+                document.getElementById('prompt').value = '';
+                uploadedFiles = [];
+                updateUploadedFilesList();
+                
+                // Reload conversations and history
+                loadConversations();
+                setTimeout(() => loadHistory(), 500);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('response-section').style.display = 'block';
+                document.getElementById('response-content').innerHTML = 
+                    `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        }
+        
+        async function loadHistory() {
+            const convoInput = document.getElementById('convo-id').value.trim();
+            const convoSelect = document.getElementById('convo-select').value;
+            const convoId = convoInput || convoSelect;
+            
+            if (!convoId) {
+                document.getElementById('history-section').style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/conversations/${encodeURIComponent(convoId)}`);
+                
+                if (!response.ok) {
+                    document.getElementById('history-section').style.display = 'none';
+                    return;
+                }
+                
+                const data = await response.json();
+                const historyContent = document.getElementById('history-content');
+                historyContent.innerHTML = '';
+                
+                if (data.history.length === 0) {
+                    historyContent.innerHTML = '<p style="color: #858585;">No messages yet</p>';
+                } else {
+                    data.history.forEach(msg => {
+                        const item = document.createElement('div');
+                        item.className = 'history-item';
+                        item.innerHTML = `
+                            <div class="history-prompt"><strong>Prompt:</strong> ${escapeHtml(msg.prompt)}</div>
+                            <div class="history-response"><strong>Response:</strong> ${escapeHtml(msg.response.substring(0, 200))}${msg.response.length > 200 ? '...' : ''}</div>
+                            <div class="history-meta">${msg.timestamp} | Model: ${msg.model}${msg.had_images > 0 ? ` | ${msg.had_images} image(s)` : ''}</div>
+                        `;
+                        historyContent.appendChild(item);
+                    });
+                }
+                
+                document.getElementById('history-section').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+        
+        function clearResponse() {
+            document.getElementById('response-section').style.display = 'none';
+            document.getElementById('response-content').textContent = '';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
