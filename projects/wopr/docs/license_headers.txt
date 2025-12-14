@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""
+WOPR - Wargaming Oversight & Position Recognition
+Copyright (c) 2025 Bob Bomar <bob@bomar.us>
+SPDX-License-Identifier: MIT
+
+[Your file description here]
+"""
+
+
+## About the Name
+
+WOPR is a homage to the War Operation Plan Response computer from 
+the 1983 film *WarGames*. No affiliation with the film or its rights holders.
+
+## License
+
+Copyright (c) 2025 Bob Bomar
+
+Licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+
+## Contact
+
+Bob Bomar - bob@bomar.us
+
