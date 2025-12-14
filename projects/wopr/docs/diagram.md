@@ -2,52 +2,57 @@
 
 ```mermaid
 flowchart LR
-  %% ====== Client ======
-  U[User<br/>Desktop/Mobile Browser] -->|HTTPS https://wopr| DNS[DNS: wopr -> Studio Cluster Ingress]
+  %% ===== Client =====
+  U[User<br/>Desktop / Mobile Browser]
+  DNS[DNS: wopr → Studio Ingress]
 
-  %% ====== Studio K8s Cluster ======
-  subgraph K8S[Studio Kubernetes Cluster]
-    ING[Ingress / Ingress Controller]
+  U -->|HTTPS https://wopr| DNS
+
+  %% ===== Studio Kubernetes Cluster =====
+  subgraph K8S["Studio Kubernetes Cluster"]
+    ING[Ingress Controller]
     WEB[wopr-web<br/>Web UI]
     API[wopr-api<br/>FastAPI :8080<br/>Routing + Orchestration]
-    CFG[wopr-config_service<br/>Centralized Config API<br/>SSoT: wopr.config.yaml]
-    VSN[wopr-vision<br/>CV / Detection / Learning<br/>Goal: state extraction]
-    ADJ[wopr-adjudicator<br/>Rules + LLM Orchestrator<br/>Cheat detection]
+    CFG[wopr-config_service<br/>Central Config API]
+    VSN[wopr-vision<br/>Vision / CV Engine]
+    ADJ[wopr-adjudicator<br/>Rules + LLM Engine]
     DB[(wopr-db<br/>PostgreSQL)]
-    CFGDB[(wopr-config-db<br/>Schema/DB in Postgres)]
-    OTHER[wopr-...<br/>Other services]
+    CFGDB[(wopr-config-db)]
+    OTHER[wopr-…<br/>Other Services]
   end
 
-  DNS --> ING --> WEB
-  WEB -->|API calls| API
+  DNS --> ING
+  ING --> WEB
+  WEB --> API
 
-  %% ====== Config flows ======
-  API -->|read config| CFG
-  WEB -->|edit config (UI)| CFG
-  VSN -->|read config| CFG
-  ADJ -->|read config| CFG
-  OTHER -->|read config| CFG
+  %% ===== Config flows =====
+  API --> CFG
+  WEB --> CFG
+  VSN --> CFG
+  ADJ --> CFG
+  OTHER --> CFG
 
-  %% ====== Core processing flows ======
-  API -->|request capture| CAM
-  API -->|invoke vision| VSN
-  API -->|invoke adjudication| ADJ
-  ADJ -->|ask for enhanced scan / targeted regions| VSN
+  %% ===== Core processing =====
+  API --> CAM
+  API --> VSN
+  API --> ADJ
+  ADJ --> VSN
 
-  %% ====== Data persistence ======
+  %% ===== Persistence =====
   API --> DB
   VSN --> DB
   ADJ --> DB
   CFG --> CFGDB
   CFGDB --- DB
 
-  %% ====== Edge devices & storage ======
-  subgraph EDGE[Edge / Home Lab]
-    CAM[wopr-cam<br/>Raspberry Pi Web Service<br/>4K-ish Webcam]
+  %% ===== Edge Devices =====
+  subgraph EDGE["Edge / Home Lab"]
+    CAM[wopr-cam<br/>Raspberry Pi<br/>4K Webcam Service]
     NAS[(NAS Storage)]
   end
 
-  CAM -->|store images| NAS
-  API -->|fetch image refs / paths| NAS
-  VSN -->|read images| NAS
+  CAM --> NAS
+  API --> NAS
+  VSN --> NAS
+
 ```
