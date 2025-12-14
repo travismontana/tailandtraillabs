@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
 
+"""
+WOPR - Wargaming Oversight & Position Recognition
+Copyright (c) 2025 Bob Bomar <bob@bomar.us>
+SPDX-License-Identifier: MIT
+
+wopr-cam -
+Camera service for WOPR. Captures images
+via USB webcam and saves to a path.
+"""
+
 import cv2
 import time
 import random
