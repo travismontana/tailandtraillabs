@@ -1,0 +1,11 @@
+# Type: (feat|fix|docs|style|refactor|test|chore)
+# Subject: Brief description (50 chars or less)
+
+# Body: Detailed explanation (wrap at 72 chars)
+# - What changed
+# - Why it changed
+# - Any breaking changes
+
+# Footer:
+# Refs: #issue-number
+# WOPR Component: (wopr-cam|wopr-api|wopr-config_service|wopr-vision|etc)
