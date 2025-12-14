@@ -1,0 +1,261 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wopr
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wopr-config-init
+  namespace: wopr
+data:
+  config.yaml: |
+    # Initial WOPR Configuration
+    # This will be imported into PostgreSQL on first run
+    
+    storage:
+      base_path: /mnt/nas/twat
+      games_subdir: games
+      image_extensions:
+        - jpg
+        - png
+      default_extension: jpg
+      thumbnail_size: [480, 480]
+      ensure_directories: true
+    
+    filenames:
+      timestamp_format: "%Y%m%d-%H%M%S"
+      image_template: "{timestamp}-{subject}.{extension}"
+      image_with_sequence_template: "{timestamp}-{subject}-{sequence:03d}.{extension}"
+      thumbnail_template: "{timestamp}-{subject}-thumb.{extension}"
+    
+    camera:
+      default_resolution: 4k
+      resolutions:
+        4k:
+          width: 4608
+          height: 2592
+        1080p:
+          width: 1920
+          height: 1080
+        720p:
+          width: 1280
+          height: 720
+      capture_delay_seconds: 2
+      default_format: RGB888
+      buffer_count: 2
+    
+    logging:
+      default_level: INFO
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+      date_format: "%Y-%m-%d %H:%M:%S"
+      default_log_dir: /var/log/wopr
+    
+    api:
+      host: 0.0.0.0
+      port: 8000
+      camera_service_url: http://camera-service:5000
+      camera_timeout_seconds: 30
+      ollama_url: http://desktop:11434
+      ollama_timeout_seconds: 60
+    
+    vision:
+      default_model: qwen2-vl:7b
+      opencv_change_threshold: 30
+      min_change_area_pixels: 1000
+      gaussian_blur_kernel: [21, 21]
+      morphology_kernel: [5, 5]
+      morphology_iterations:
+        dilate: 2
+        erode: 1
+    
+    database:
+      connection_pool_size: 5
+      connection_timeout_seconds: 30
+      max_overflow: 10
+    
+    game_types:
+      - id: dune_imperium
+        display_name: Dune Imperium
+      - id: star_wars_legion
+        display_name: Star Wars Legion
+    
+    game_statuses:
+      - setup
+      - in_progress
+      - completed
+      - abandoned
+    
+    analysis_statuses:
+      - pending
+      - processing
+      - completed
+      - failed
+    
+    image_subjects:
+      - setup
+      - capture
+      - move
+      - thumbnail
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: config-db-secret
+  namespace: wopr
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: changeme_in_production
+  DATABASE_URL: postgresql://wopr:changeme_in_production@config-db:5432/config_db
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: config-db-pvc
+  namespace: wopr
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: config-db
+  namespace: wopr
+spec:
+  serviceName: config-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-db
+  template:
+    metadata:
+      labels:
+        app: config-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          value: config_db
+        - name: POSTGRES_USER
+          value: wopr
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: config-db-secret
+              key: POSTGRES_PASSWORD
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        - name: init-sql
+          mountPath: /docker-entrypoint-initdb.d
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: init-sql
+        configMap:
+          name: wopr-config-init
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-db
+  namespace: wopr
+spec:
+  selector:
+    app: config-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+  clusterIP: None
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-service
+  namespace: wopr
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: config-service
+  template:
+    metadata:
+      labels:
+        app: config-service
+    spec:
+      containers:
+      - name: config-service
+        image: registry.yourdomain.com/wopr-config-service:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: config-db-secret
+              key: DATABASE_URL
+        - name: WOPR_ENVIRONMENT
+          value: default
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-service
+  namespace: wopr
+spec:
+  selector:
+    app: config-service
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP

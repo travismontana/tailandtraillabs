@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wopr-config
+  namespace: wopr
+data:
+  config.yaml: |
+    # Your entire config.yaml content here
+    storage:
+      base_path: /mnt/nas/twat
+      games_subdir: games
+      image_extensions:
+        - jpg
+        - png
+      default_extension: jpg
+    
+    camera:
+      default_resolution: 4k
+      resolutions:
+        4k:
+          width: 4608
+          height: 2592
+        1080p:
+          width: 1920
+          height: 1080
+    
+    # ... rest of config ...
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-service
+  namespace: wopr
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: config-service
+  template:
+    metadata:
+      labels:
+        app: config-service
+    spec:
+      containers:
+      - name: config-service
+        image: registry.yourdomain.com/wopr-config-service:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: WOPR_CONFIG_FILE
+          value: /etc/wopr/config.yaml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/wopr
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+      volumes:
+      - name: config
+        configMap:
+          name: wopr-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-service
+  namespace: wopr
+spec:
+  selector:
+    app: config-service
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP

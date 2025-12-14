@@ -1,0 +1,103 @@
+# WOPR Configuration - Single Source of Truth
+# All paths, settings, and constants defined here
+
+# Storage Configuration
+storage:
+  base_path: /remote/wopr
+  games_subdir: games
+  image_subdir: images
+  image_import_subdir: import
+  image_extensions:
+    - jpg
+    - png
+  default_extension: jpg
+  thumbnail_size: [480, 480]
+  ensure_directories: true
+
+# Logging Configuration
+logging:
+  default_level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  default_log_dir: /var/log/wopr
+  
+# Filename Templates
+filenames:
+  timestamp_format: "%Y%m%d-%H%M%S"
+  image_template: "{timestamp}-{game_id}-{subject}.{extension}"
+  image_with_sequence_template: "{timestamp}-{sequence:03d}-{game_id}-{subject}.{extension}"
+  thumbnail_template: "{timestamp}-{game}-{subject}-thumb.{extension}"
+
+# Camera Configuration
+camera:
+  default_resolution: 3k
+  resolutions:
+    4k:
+      width: 4608
+      height: 2592
+    3k:
+      width: 3840
+      height: 2160
+    1080p:
+      width: 1920
+      height: 1080
+    720p:
+      width: 1280
+      height: 720
+  capture_delay_seconds: 2
+  default_format: RGB888
+  buffer_count: 2
+
+# API Configuration
+api:
+  host: 0.0.0.0
+  port: 2260
+  camera_service_url: http://raspberrypi.local:5000
+  camera_timeout_seconds: 30
+  ollama_url: http://desktop:11434
+  ollama_timeout_seconds: 60
+
+# Vision Configuration
+vision:
+  default_model: qwen2-vl:7b
+  opencv_change_threshold: 30
+  min_change_area_pixels: 1000
+  gaussian_blur_kernel: [21, 21]
+  morphology_kernel: [5, 5]
+  morphology_iterations:
+    dilate: 2
+    erode: 1
+
+# Database Configuration
+database:
+  connection_pool_size: 5
+  connection_timeout_seconds: 30
+  max_overflow: 10
+
+# Game Types
+game_types:
+  - id: dune_imperium
+    display_name: Dune Imperium
+  - id: star_wars_legion
+    display_name: Star Wars Legion
+
+# Game Statuses
+game_statuses:
+  - setup
+  - in_progress
+  - completed
+  - abandoned
+
+# Analysis Statuses
+analysis_statuses:
+  - pending
+  - processing
+  - completed
+  - failed
+
+# Image Subjects (types of captures)
+image_subjects:
+  - setup
+  - capture
+  - move
+  - thumbnail
