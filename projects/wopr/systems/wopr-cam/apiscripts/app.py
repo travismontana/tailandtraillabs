@@ -24,7 +24,6 @@ config = get_config()
 logger = setup_logging("wopr-camera", config=config)
 
 from flask import Flask, request, jsonify
-from picamera2 import Picamera2
 import os
 
 app = Flask(__name__)
