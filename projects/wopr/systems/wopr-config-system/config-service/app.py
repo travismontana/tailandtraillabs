@@ -42,7 +42,7 @@ class ConfigValue(BaseModel):
     value: Any
     value_type: str
     description: Optional[str] = None
-    environment: str = 'default'
+    environment: str = 'default' 
 
 
 class ConfigUpdate(BaseModel):
@@ -52,11 +52,35 @@ class ConfigUpdate(BaseModel):
     updated_by: Optional[str] = None
 
 
-def parse_value(value_str: str, value_type: str) -> Any:
-    """Parse JSON-encoded value based on type"""
-    try:
-        parsed = json.loads(value_str)
-        
+def parse_value(value: Any, value_type: str) -> Any:
+    """Parse JSONB/JSON-encoded value based on type.
+    Be tolerant: /all should not 500 because of one bad row.
+    """
+    if value is None:
+        return None
+
+    # JSONB often arrives already decoded
+    if isinstance(value, (dict, list, bool, int, float)):
+        parsed = value
+    else:
+        if isinstance(value, (bytes, bytearray)):
+            value = value.decode("utf-8")
+
+        if not isinstance(value, str):
+            # Avoid str(dict) -> "{'a': 1}" which is not JSON
+            # If this happens, it's better to just return it as-is
+            return value
+
+        s = value.strip()
+        if s == "":
+            return None  # or "" if you prefer
+
+        try:
+            parsed = json.loads(s)
+        except json.JSONDecodeError:
+            # Don't crash /all; return raw string for inspection
+            parsed = value
+
         # Type validation
         if value_type == 'string' and not isinstance(parsed, str):
             raise ValueError(f"Expected string, got {type(parsed)}")
@@ -72,8 +96,6 @@ def parse_value(value_str: str, value_type: str) -> Any:
             raise ValueError(f"Expected dict, got {type(parsed)}")
         
         return parsed
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON: {e}")
 
 
 def infer_type(value: Any) -> str:
@@ -330,8 +352,8 @@ def set_value(key: str, update: ConfigUpdate, environment: str = None):
             cur.execute(
                 """
                 INSERT INTO settings (key, value, value_type, description, environment, updated_by)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (key) WHERE environment = %s
+                VALUES (%s, %s::jsonb, %s, %s, %s, %s)
+                ON CONFLICT (key, environment)
                 DO UPDATE SET 
                     value = EXCLUDED.value,
                     value_type = EXCLUDED.value_type,
@@ -459,15 +481,15 @@ async def import_yaml(request: dict):
                 cur.execute(
                     """
                     INSERT INTO settings (key, value, value_type, environment, updated_by)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (key) WHERE environment = %s
+                    VALUES (%s, %s::jsonb, %s, %s, %s)
+                    ON CONFLICT (key, environment)
                     DO UPDATE SET
                         value = EXCLUDED.value,
                         value_type = EXCLUDED.value_type,
                         updated_at = NOW(),
                         updated_by = EXCLUDED.updated_by
                     """,
-                    (key, value_json, value_type, environment, updated_by, environment)
+                    (key, value_json, value_type, environment, updated_by)
                 )
             
             conn.commit()

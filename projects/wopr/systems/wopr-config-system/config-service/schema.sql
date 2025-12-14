@@ -101,4 +101,11 @@ INSERT INTO settings (key, value, value_type, description, environment) VALUES
 -- Image Subjects
 ('image_subjects', '["setup", "capture", "move", "thumbnail"]', 'list', 'Valid image subject types', 'default')
 
-ON CONFLICT (key, environment) DO NOTHING;
+
+ON CONFLICT (key, environment)
+DO UPDATE SET
+    value       = EXCLUDED.value,
+    value_type  = EXCLUDED.value_type,
+    description = EXCLUDED.description,
+    updated_at  = NOW(),
+    updated_by  = EXCLUDED.updated_by;

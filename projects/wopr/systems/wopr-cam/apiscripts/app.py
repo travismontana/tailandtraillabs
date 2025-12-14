@@ -32,7 +32,7 @@ app = Flask(__name__)
 def capture():
     data = request.json
     game_id = data['game_id']
-    resolution = data.get('resolution', '4k')
+    subject = data['subject']
 
     # Generate filepath from config
     filepath = imagefilename(
@@ -60,6 +60,7 @@ def capture():
         cv2.imwrite(filepath, frame)
 
     cap.release()
+    return filepath
 
 @app.route('/status', methods=['GET'])
 def status():
