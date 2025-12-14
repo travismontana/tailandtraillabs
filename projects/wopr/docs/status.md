@@ -7,10 +7,24 @@
 
 ## 🎯 Current Focus
 
+**20251214 - 2025, Dec 14**
 **What I'm actively working on right now:**
 - [ ] Setting up config service in k8s cluster
-- [ ] Waiting for hardware (RPi Camera Module 3)
-- [ ] 
+- [ ] rpi + webcam (Bus 001 Device 003: ID 328f:00ec EMEET EMEET SmartCam C960 4K)
+- [ ] have a python script to caputre the images using the wopr-config python module.
+- [ ] writing a service to run on woprcam (the pi) and take the image.
+- [X] Decision: naming convention, so wopr-config_service not wopr-config-service, because the thing is "config_service" and wopr is the "app" or "env" or whatever. - seperates major things, _ is spaces in names in names of services or apps, so app-service_name.
+- [ ] want to see how to integrate a proper project mangement system easily into claude and my github so I can use 1 ui for code and pm tracking, and claude is updated.  Or if I can just do diffs like this, where I update this section, and paste it into claude, that'd work, but I'd like him to at least see my code and keep updated of what's going on. Do this:
+```
+git commit -m "feat: wopr-cam_service flask endpoint"
+
+# Update STATUS.md
+# Add commit message to "Recently Completed"
+
+# When chatting with Claude
+git log --oneline -10 > recent_work.txt
+# Paste STATUS.md + recent_work.txt
+```
 
 **Time estimate to complete current tasks:** 
 
