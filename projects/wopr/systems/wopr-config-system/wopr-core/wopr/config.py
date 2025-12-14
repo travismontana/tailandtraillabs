@@ -28,7 +28,7 @@ class ConfigClient:
         if service_url is None:
             service_url = os.getenv(
                 'WOPR_CONFIG_SERVICE_URL',
-                'http://config-service:8080'
+                'http://wopr-config_service.svc.tailandtraillabs.org:8080'
             )
         
         self.service_url = service_url.rstrip('/')
