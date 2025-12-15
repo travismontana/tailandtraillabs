@@ -12,7 +12,8 @@
 - telemetry 
 - add telemetry to config and core module
 - centralize the core module
-- 
+- installer
+- be able to rollout services via installer
 
 ---
 
