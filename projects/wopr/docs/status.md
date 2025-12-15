@@ -7,6 +7,11 @@
 
 **Things I'd like now that I've had time to process things**
 - on wopr_config - needs a UI that can edit the thing like yaml.
+- local config cache, cache invalidation, config versioning in the DB, auto config rollback if a problem detected, problem detection. 
+- status page
+- telemetry 
+- add telemetry to config and core module
+- centralize the core module
 - 
 
 ---
