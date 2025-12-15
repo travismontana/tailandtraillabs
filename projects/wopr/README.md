@@ -13,18 +13,6 @@ Copyright (c) 2025 Bob Bomar
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### What This Means
-
-- ✅ You can use this code freely
-- ✅ You can modify it
-- ✅ You can distribute it
-- ✅ You can use it commercially
-- ✅ Just keep the copyright notice
-
-### Future Licensing
-
-This project may transition to a dual-license model (AGPLv3 + Commercial) in the future to support commercial development while maintaining open-source availability.
-
 ## Contact
 
 For questions, licensing inquiries, or collaboration:
