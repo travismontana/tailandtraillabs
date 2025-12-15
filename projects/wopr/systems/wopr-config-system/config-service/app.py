@@ -12,6 +12,7 @@ import os
 import yaml
 import logging
 from contextlib import contextmanager
+from psycopg2.extras import RealDictCursor, Json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -142,12 +143,19 @@ def get_value(key: str, environment: str = None):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Try exact match first
             cur.execute(
-                """
-                SELECT key, value, value_type, description, environment
+                 """
+                SELECT key,
+                       value::text AS value,
+                       value_type,
+                       description,
+                       environment
                 FROM settings
-                WHERE key = %s AND environment = %s
+                WHERE key = %s
+                  AND environment IN (%s, 'default')
+                ORDER BY CASE WHEN environment = %s THEN 0 ELSE 1 END
+                LIMIT 1
                 """,
-                (key, environment)
+                (key, environment, environment)
             )
             row = cur.fetchone()
             
@@ -155,7 +163,7 @@ def get_value(key: str, environment: str = None):
             if not row and environment != 'default':
                 cur.execute(
                     """
-                    SELECT key, value, value_type, description, environment
+                    SELECT key, value::text AS value, value_type, description, environment
                     FROM settings
                     WHERE key = %s AND environment = 'default'
                     """,
@@ -287,7 +295,7 @@ def get_all(environment: str = None):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT key, value, value_type
+                SELECT key, value::text AS value, value_type
                 FROM settings
                 WHERE environment = %s OR environment = 'default'
                 ORDER BY CASE WHEN environment = %s THEN 0 ELSE 1 END, key
@@ -352,7 +360,7 @@ def set_value(key: str, update: ConfigUpdate, environment: str = None):
             cur.execute(
                 """
                 INSERT INTO settings (key, value, value_type, description, environment, updated_by)
-                VALUES (%s, %s::jsonb, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (key, environment)
                 DO UPDATE SET 
                     value = EXCLUDED.value,
@@ -360,19 +368,30 @@ def set_value(key: str, update: ConfigUpdate, environment: str = None):
                     description = COALESCE(EXCLUDED.description, settings.description),
                     updated_at = NOW(),
                     updated_by = EXCLUDED.updated_by
-                RETURNING *
+                RETURNING key,
+                        value::text AS value,
+                        value_type,
+                        description
                 """,
-                (key, value_json, value_type, update.description, environment, update.updated_by, environment)
+                (key, value_json, value_type, update.description, environment, update.updated_by)
             )
             result = cur.fetchone()
             
             # Record history
             cur.execute(
                 """
-                INSERT INTO config_history (key, old_value, new_value, changed_by, environment)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO settings (key, value, value_type, description, environment, updated_by)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (key, environment)
+                DO UPDATE SET
+                    value = EXCLUDED.value,
+                    value_type = EXCLUDED.value_type,
+                    description = COALESCE(EXCLUDED.description, settings.description),
+                    updated_at = NOW(),
+                    updated_by = EXCLUDED.updated_by
+                RETURNING key, value::text AS value, value_type, description
                 """,
-                (key, old_value, value_json, update.updated_by, environment)
+                (key, value_json, value_type, update.description, environment, update.updated_by)
             )
             
             conn.commit()
